@@ -1,0 +1,120 @@
+Select *
+From ProtoProject1..Housing
+
+
+--Date Format Changing
+Select SaleDate
+From ProtoProject1..Housing
+Update ProtoProject1..Housing
+Set SaleDate = Convert(Date,SaleDate)
+
+
+
+--Populate Property Address Data
+select a.ParcelID, a.PropertyAddress, b.ParcelID , b.PropertyAddress , ISNULL(a.PropertyAddress,b.PropertyAddress)
+From ProtoProject1..Housing a 
+join ProtoProject1..Housing b 
+on a.ParcelID = b.ParcelID and a.[UniqueID ] <> b.[UniqueID ]
+Where a.PropertyAddress is null 
+
+Update a 
+Set PropertyAddress = ISNULL(a.PropertyAddress,b.PropertyAddress)
+From ProtoProject1..Housing a 
+join ProtoProject1..Housing b 
+on a.ParcelID = b.ParcelID and a.[UniqueID ] <> b.[UniqueID ]
+Where a.PropertyAddress is null 
+
+
+-- Seperated Out Address into individual (Address , City, State)
+
+Select
+SUBSTRING(PropertyAddress, 1 ,CHARINDEX(',',PropertyAddress) -1 ) as Address,
+SUBSTRING(PropertyAddress,CHARINDEX(',',PropertyAddress) +1 , LEN(PropertyAddress )) as City
+
+From ProtoProject1..Housing 
+
+Alter Table ProtoProject1..Housing 
+Add Address nvarchar(255)
+
+Update ProtoProject1..Housing
+Set Address  = SUBSTRING(PropertyAddress, 1 ,CHARINDEX(',',PropertyAddress) -1 )
+
+Alter Table ProtoProject1..Housing 
+Add City nvarchar(255)
+
+Update ProtoProject1..Housing
+Set City  = SUBSTRING(PropertyAddress,CHARINDEX(',',PropertyAddress) +1 , LEN(PropertyAddress ))
+
+
+
+Select OwnerAddress
+From ProtoProject1..Housing
+
+Select
+ParseName(Replace(OwnerAddress, ',', '.'), 3)
+,ParseName(Replace(OwnerAddress, ',', '.'), 2)
+,ParseName(Replace(OwnerAddress, ',', '.'), 1)
+From ProtoProject1..Housing
+
+Alter Table ProtoProject1..Housing 
+Add Ow_Address nvarchar(255)
+
+Update ProtoProject1..Housing
+Set Ow_Address  = ParseName(Replace(OwnerAddress, ',', '.'), 3)
+
+Alter Table ProtoProject1..Housing 
+Add Ow_City nvarchar(255)
+
+Update ProtoProject1..Housing
+Set Ow_City  = ParseName(Replace(OwnerAddress, ',', '.'), 2)
+
+Alter Table ProtoProject1..Housing 
+Add Ow_State nvarchar(255)
+
+Update ProtoProject1..Housing
+Set Ow_State  = ParseName(Replace(OwnerAddress, ',', '.'), 1)
+
+-----
+
+Select DISTINCT(SoldAsVacant), COUNT(SoldAsVacant)
+From ProtoProject1..Housing
+Group by SoldAsVacant
+
+Select SoldAsVacant
+,Case when SoldAsVacant = 'Y' Then 'Yes'
+	When SoldAsVacant = 'N' Then 'No' 
+	Else SoldAsVacant
+	End 
+From ProtoProject1..Housing
+
+Update ProtoProject1..Housing
+Set SoldAsVacant = Case when SoldAsVacant = 'Y' Then 'Yes'
+	When SoldAsVacant = 'N' Then 'No' 
+	Else SoldAsVacant
+	End 
+
+--Removing unused Column 
+Select *
+From ProtoProject1..Housing
+
+Alter Table ProtoProject1..Housing
+Drop Column PropertyAddress, OwnerAddress
+
+
+
+
+	--Removing Duplicates
+	
+With Dup_nomCTE as (	
+	Select *,
+	ROW_NUMBER() Over (Partition By ParcelID, PropertyAddress, SaleDate, 
+	SalePrice,LegalReference
+	Order By UniqueID ) as Dup_nom
+	From ProtoProject1..Housing 
+	)
+	
+	Select *
+	From  Dup_nomCTE
+	Where Dup_nom > 1
+  
+  
